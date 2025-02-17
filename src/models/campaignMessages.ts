@@ -1,5 +1,11 @@
 import mongoose, { Schema, Document } from "mongoose";
-import { ICampaignMessage } from "../interfaces/ICampaignMessage";
+
+export interface ICampaignMessage extends Document {
+  cmapaignId: string;
+  messageId: string;
+  messageStatus: string;
+  createdAt: Date;
+}
 
 const CampaignMessageSchema: Schema = new Schema(
   {

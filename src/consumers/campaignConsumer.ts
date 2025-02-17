@@ -1,45 +1,43 @@
-import mongoose from "mongoose";
 import { CampaignMessage } from "../interfaces/IIncomingMessage";
-import { IWhatsAppConfig, whatsappConfigs } from "../models/whatsAppConfig";
-import { IWorkflow, workflows } from "../models/workflows";
-import { getTemplateMessage } from "../services/payloadBuilder";
-import logger from "../utils/logger";
+import { RabbitMQConnection } from "../connections/rabbittMQ/rabbitMQ";
+import * as amqp from "amqplib";
+import { processCampaignMessage } from "../services/processCampaignMessage";
 
-export async function processCampaignMessage(
-  message: CampaignMessage
-): Promise<void> {
-  console.log(` Processing  message: ${message}`);
-  const accountId = new mongoose.Types.ObjectId(message.accountId);
-  const campaignId = new mongoose.Types.ObjectId(message.campaignId);
-
-  const campaign: IWorkflow | null = await workflows.findOne({
-    id: campaignId,
-  });
-  console.log("specific campaign", campaign);
-
-  const whatsAppConfig: IWhatsAppConfig | null = await whatsappConfigs.findOne({
-    account: accountId,
-  });
-  console.log("specific config", whatsAppConfig);
-  if (!campaign) {
-    logger.error({
-      event: "processCampaignMessage",
-      module: "campaignConsumer.ts",
-      message: "Campaign not found",
-      campaignId: message.campaignId,
-      time: new Date().toISOString(),
-    });
-    return;
+export async function campaignConsumer(queueName: string): Promise<void> {
+  let instance = RabbitMQConnection.getInstance();
+  if (!instance.channel) {
+    await RabbitMQConnection.getInstance().connect();
+    instance = RabbitMQConnection.getInstance();
   }
 
-  const templateMessage = await getTemplateMessage(message, campaign);
-  console.log(templateMessage?.rawTemplateData);
-  console.log("whatsapp configs", whatsAppConfig);
-  //   logger.info({
-  //     event: "processCampaignMessage",
-  //     module: "campaignConsumer.ts",
-  //     message: "campaign data",
-  //     data: campaign,
-  //     time: new Date().toISOString(),
-  //   });
+  const channel: amqp.Channel | null = instance.channel;
+
+  if (!channel) {
+    return;
+  }
+  await channel.assertQueue(queueName, { durable: true });
+
+  console.log(` RabbitMQ Connected. Listening on queue: ${queueName}`);
+
+  channel.consume(
+    queueName,
+    async (msg: amqp.ConsumeMessage | null) => {
+      if (msg) {
+        try {
+          //  Parse the message content (RabbitMQ messages are Buffers)
+          const messageContent: CampaignMessage = JSON.parse(
+            msg.content.toString()
+          );
+
+          console.log(`Received cmpaign:`, messageContent);
+          await processCampaignMessage(messageContent);
+          channel.ack(msg);
+        } catch (error) {
+          console.error(" Error processing message:", error);
+          channel.nack(msg, false, true);
+        }
+      }
+    },
+    { noAck: false } // Manual Acknowledgment Mode
+  );
 }

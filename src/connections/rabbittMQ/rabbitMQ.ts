@@ -1,6 +1,5 @@
 import amqp from "amqplib";
 import dotenv from "dotenv";
-import { processCampaignMessage } from "../../consumers/campaignConsumer";
 import { CampaignMessage } from "../../interfaces/IIncomingMessage";
 
 dotenv.config();
@@ -8,37 +7,37 @@ dotenv.config();
 const RABBITMQ_URL = process.env.RABBITMQ_URL || "amqp://localhost";
 const QUEUE_NAME = process.env.RABBITMQ_QUEUE || "campaigns_queue";
 
-export async function connectRabbitMQ() {
-  try {
-    const connection = await amqp.connect(RABBITMQ_URL);
-    const channel = await connection.createChannel();
+export class RabbitMQConnection {
+  private static instance: RabbitMQConnection;
+  private isConnected = false;
+  public connection: amqp.Connection | null = null;
+  public channel: amqp.Channel | null = null;
 
-    await channel.assertQueue(QUEUE_NAME, { durable: true });
+  private constructor() {}
 
-    console.log(` RabbitMQ Connected. Listening on queue: ${QUEUE_NAME}`);
+  public static getInstance(): RabbitMQConnection {
+    if (!RabbitMQConnection.instance) {
+      RabbitMQConnection.instance = new RabbitMQConnection();
+    }
+    return RabbitMQConnection.instance;
+  }
 
-    channel.consume(
-      QUEUE_NAME,
-      async (msg: amqp.ConsumeMessage | null) => {
-        if (msg) {
-          try {
-            //  Parse the message content (RabbitMQ messages are Buffers)
-            const messageContent: CampaignMessage = JSON.parse(
-              msg.content.toString()
-            );
+  public async connect(): Promise<void> {
+    if (this.isConnected) {
+      console.log("RabbitMQ already connected.");
+      return;
+    }
 
-            console.log(`Received cmpaign:`, messageContent);
-            await processCampaignMessage(messageContent);
-            channel.ack(msg);
-          } catch (error) {
-            console.error(" Error processing message:", error);
-            channel.nack(msg, false, true);
-          }
-        }
-      },
-      { noAck: false } // Manual Acknowledgment Mode
-    );
-  } catch (error) {
-    console.error(" RabbitMQ Connection Failed:", error);
+    try {
+      this.connection = await amqp.connect(RABBITMQ_URL);
+      this.channel = await this.connection.createChannel();
+      this.isConnected = true;
+      console.log("Connected to RabbitMQ");
+    } catch (error) {
+      console.error("RabbitMQ Connection Failed:", error);
+      process.exit(1);
+    }
   }
 }
+
+// export default RabbitMQConnection;
