@@ -3,4 +3,5 @@ export interface CampaignMessage {
   accountId: string;
   templateName: string;
   accountName: string;
+  csvUrl: string;
 }

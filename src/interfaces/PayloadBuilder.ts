@@ -1,5 +1,10 @@
 import { IRawTemplateData } from "./IRawTemplateData";
 import { ITemplatePayload } from "./ITemplatePayload";
+import { IRawHeader } from "./PositionalComponents/IHeaderComponents";
+import {
+  IPhoneNumber,
+  IQuickReply,
+} from "./SharedComponents/IButtonComponents";
 
 abstract class PayloadBuilder {
   protected payload: ITemplatePayload;
@@ -22,7 +27,7 @@ abstract class PayloadBuilder {
   }
 
   setRecipient(recipientParameter: string): void {
-    this.payload.to = `{{${recipientParameter}}}`;
+    this.payload.to = `+{{${recipientParameter}}}`;
   }
 
   setTemplateName(templateName: string, language: string): void {
@@ -30,11 +35,45 @@ abstract class PayloadBuilder {
     this.payload.template.language.code = language;
   }
 
-  addHeader(headerText?: string): void {}
-  addBody(bodyText?: string): void {}
+  addHeader(headerInput?: object, parameters?: any[]): void {}
+  addBody(bodyInput?: object, parametersValues?: any[]): void {}
+
   addButtonUrl(index: number, urlParam?: any[]): void {}
-  addQuickReply(index: number, data?: any[]): void {}
-  processButtons(buttons: any[]): void {}
+  addQuickReply(index: number): void {
+    let btn: IQuickReply = {
+      type: "button",
+      sub_type: "quick_reply",
+      index: index,
+      parameters: [],
+    };
+    this.payload.template.components.push(btn);
+  }
+
+  addPhoneNumber(index: number): void {
+    let btn: IPhoneNumber = {
+      type: "button",
+      sub_type: "VOICE_CALL",
+      index: index,
+    };
+    this.payload.template.components.push(btn);
+  }
+  processButtons(buttons: any[]): void {
+    for (let i = 0; i < buttons.length; i++) {
+      const btn = buttons[i];
+      const type = btn.type;
+      switch (type) {
+        case "QUICK_REPLY":
+          this.addQuickReply(i);
+          break;
+        case "PHONE_NUMBER":
+          this.addPhoneNumber(i);
+          break;
+
+        default:
+          break;
+      }
+    }
+  }
 
   generateScopedPayload(templateData: IRawTemplateData): ITemplatePayload {
     return { ...this.payload };

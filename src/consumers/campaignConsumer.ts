@@ -6,7 +6,7 @@ import { processCampaignMessage } from "../services/processCampaignMessage";
 export async function campaignConsumer(queueName: string): Promise<void> {
   let instance = RabbitMQConnection.getInstance();
   if (!instance.channel) {
-    await RabbitMQConnection.getInstance().connect();
+    await instance.connect();
     instance = RabbitMQConnection.getInstance();
   }
 

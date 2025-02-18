@@ -9,8 +9,8 @@ export interface ICampaignMessage extends Document {
 
 const CampaignMessageSchema: Schema = new Schema(
   {
-    cmapaignId: { type: String, required: true },
-    messageId: { type: Number, required: true },
+    campaignId: { type: String, required: true },
+    messageId: { type: String, required: true },
     messageStatus: { type: String, required: true },
     createdAt: { type: Date, default: Date.now },
   },
@@ -18,6 +18,6 @@ const CampaignMessageSchema: Schema = new Schema(
 );
 
 export default mongoose.model<ICampaignMessage>(
-  "Product",
+  "CampaignMessage",
   CampaignMessageSchema
 );

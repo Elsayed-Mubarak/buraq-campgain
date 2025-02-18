@@ -22,6 +22,7 @@
   "dependencies": {
     "amqplib": "^0.10.5",
     "axios": "^1.7.9",
+    "bullmq": "^5.41.2",
     "csv-parser": "^3.2.0",
     "dotenv": "^16.4.7",
     "ioredis": "^5.5.0",

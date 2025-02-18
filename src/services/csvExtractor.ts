@@ -1,12 +1,18 @@
 import axios from "axios";
 import csv from "csv-parser";
 import { Readable } from "stream";
-import { payloadBuilder } from "./positionalPayloadBuilder";
+import { positonalPayloadBuilder } from "./positionalPayloadBuilder";
 import { IRawTemplateData } from "../interfaces/IRawTemplateData";
+import { replaceTemplateValues } from "./finalPayload";
+import { IWhatsAppConfig } from "../models/whatsAppConfig";
+import { saveCampaignMessage } from "./saveCampaignMessage";
+import { messageQueue } from "../queus/messageQueue";
 
 export async function fetchAndProcessCsv(
   csvUrl: string,
-  templateData: IRawTemplateData
+  templateData: IRawTemplateData,
+  whatsApp: IWhatsAppConfig,
+  campaignId: string
 ) {
   try {
     console.log("Fetching CSV file from URL:", csvUrl);
@@ -18,32 +24,55 @@ export async function fetchAndProcessCsv(
 
       response.data
         .pipe(csv())
-        .on("data", (row: any) => rows.push(row))
+        .on("data", (row: any) => {
+          // Push row directly without predefined keys
+          rows.push(row);
+        })
         .on("end", async () => {
           if (rows.length === 0) {
-            reject("⚠️ No data found in CSV file!");
+            console.log(" No data found in CSV file!");
             return;
           }
 
-          console.log(" Starting New CSV Batch...");
-
           const templateName = templateData.name;
           const language = templateData.language;
-          //   const payload = payloadService.generateScopedPayload(
-          //     templateName,
-          //     language
-          //   );
+          const payload =
+            positonalPayloadBuilder.generateScopedPayload(templateData);
 
-          //   console.log(" Unified Payload for Batch:", payload);
+          console.log("Processed CSV Data:");
+          rows.forEach(async (row, index) => {
+            // await messageQueue.add("sendMessage", {
+            //   campaignId,
+            //   rowData: row,
+            //   whatsApp,
+            //   payload,
+            // });
+            const finalPayload = replaceTemplateValues(payload, row);
+            console.log(
+              "\nTemplate Request Payload:",
+              whatsApp.phoneNumberId,
+              whatsApp.apiToken
+            );
+            const url = `https://graph.facebook.com/v18.0/${whatsApp.phoneNumberId}/messages`;
 
-          //  Process each row with the same payload
-          for (const row of rows) {
-            // console.log(` Sending to ${row.PhoneNumber} with Payload`, payload);
-            // await sendMessageToWhatsApp(row.PhoneNumber, payload);
-          }
+            const headers = {
+              Authorization: `Bearer ${whatsApp.apiToken}`,
+              "Content-Type": "application/json",
+            };
 
-          // Reset payload after batch processing
-          payloadBuilder.resetPayload();
+            const response = await axios.post(url, finalPayload, { headers });
+            if (response.status === 200) {
+              await saveCampaignMessage(
+                campaignId,
+                response.data.messages[0].id,
+                response.data.messages[0].message_status
+              );
+            }
+
+            console.log(JSON.stringify(response.data, null, 2));
+            return response.data;
+          });
+          //   positonalPayloadBuilder.resetPayload();
           console.log(" Payload reset. Ready for next batch.");
 
           resolve();
