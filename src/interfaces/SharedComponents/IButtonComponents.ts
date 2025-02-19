@@ -16,6 +16,12 @@ export interface IPhoneNumber {
   index: number;
 }
 
+export interface IRawUrl {
+  type: "URL";
+  text: string;
+  url: string;
+  example?: string[];
+}
 export interface IUrl {
   type: "button";
   sub_type: "url";
