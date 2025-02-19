@@ -7,6 +7,8 @@ import { replaceTemplateValues } from "./finalPayload";
 import { IWhatsAppConfig } from "../models/whatsAppConfig";
 import { saveCampaignMessage } from "./saveCampaignMessage";
 import { messageQueue } from "../queus/messageQueue";
+import { namePayloadBuilder } from "./namedPayloadBuilder";
+import PayloadBuilder from "../interfaces/PayloadBuilder";
 
 export async function fetchAndProcessCsv(
   csvUrl: string,
@@ -36,8 +38,13 @@ export async function fetchAndProcessCsv(
 
           const templateName = templateData.name;
           const language = templateData.language;
-          const payload =
-            positonalPayloadBuilder.generateScopedPayload(templateData);
+          let payload;
+          if (templateData.parameter_format === "NAMED") {
+            payload = namePayloadBuilder.generateScopedPayload(templateData);
+          } else {
+            payload =
+              positonalPayloadBuilder.generateScopedPayload(templateData);
+          }
 
           console.log("Processed CSV Data:");
           rows.forEach(async (row, index) => {
@@ -47,6 +54,7 @@ export async function fetchAndProcessCsv(
             //   whatsApp,
             //   payload,
             // });
+            console.log(row);
             const finalPayload = replaceTemplateValues(payload, row);
             console.log(
               "\nTemplate Request Payload:",
@@ -72,7 +80,7 @@ export async function fetchAndProcessCsv(
             console.log(JSON.stringify(response.data, null, 2));
             return response.data;
           });
-          //   positonalPayloadBuilder.resetPayload();
+          positonalPayloadBuilder.resetPayload();
           console.log(" Payload reset. Ready for next batch.");
 
           resolve();

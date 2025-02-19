@@ -1,9 +1,11 @@
 import { IRawTemplateData } from "./IRawTemplateData";
 import { ITemplatePayload } from "./ITemplatePayload";
-import { IRawHeader } from "./PositionalComponents/IHeaderComponents";
 import {
   IPhoneNumber,
   IQuickReply,
+  IRawUrl,
+  IUrl,
+  IUrlParams,
 } from "./SharedComponents/IButtonComponents";
 
 abstract class PayloadBuilder {
@@ -38,7 +40,16 @@ abstract class PayloadBuilder {
   addHeader(headerInput?: object, parameters?: any[]): void {}
   addBody(bodyInput?: object, parametersValues?: any[]): void {}
 
-  addButtonUrl(index: number, urlParam?: any[]): void {}
+  addButtonUrl(index: number, urlParams?: IUrlParams[]): void {
+    let btn: IUrl = {
+      type: "button",
+      sub_type: "url",
+      index: index,
+      parameters: urlParams,
+    };
+    this.payload.template.components.push(btn);
+  }
+
   addQuickReply(index: number): void {
     let btn: IQuickReply = {
       type: "button",
@@ -57,9 +68,9 @@ abstract class PayloadBuilder {
     };
     this.payload.template.components.push(btn);
   }
-  processButtons(buttons: any[]): void {
+  processButtons(buttons: any[], urlParams?: string[]): void {
     for (let i = 0; i < buttons.length; i++) {
-      const btn = buttons[i];
+      let btn = buttons[i];
       const type = btn.type;
       switch (type) {
         case "QUICK_REPLY":
@@ -67,6 +78,16 @@ abstract class PayloadBuilder {
           break;
         case "PHONE_NUMBER":
           this.addPhoneNumber(i);
+          break;
+        case "URL":
+          btn = btn as IRawUrl | undefined;
+          let finalParams: IUrlParams[] = [];
+          if (btn && btn.example && urlParams) {
+            urlParams.forEach((param) => {
+              finalParams.push({ type: "text", text: `{{${param}}}` });
+            });
+            this.addButtonUrl(i, finalParams);
+          }
           break;
 
         default:
