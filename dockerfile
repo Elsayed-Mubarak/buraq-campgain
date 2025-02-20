@@ -18,4 +18,4 @@ RUN npm run build
 
 
 # Define the command to run the app
-CMD ["npm", "serve"]
+CMD ["node", "dist/index.js"]
